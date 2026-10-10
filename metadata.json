@@ -1,0 +1,6 @@
+{
+  "name": "Medicine Expiry Alert System",
+  "description": "Hospital and pharmacy inventory management system with batch-wise expiry alerts, FEFO stock rotation, quarantine management, and AI insights.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

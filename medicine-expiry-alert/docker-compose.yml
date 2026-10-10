@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: medicine_mysql_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: medicine_expiry_db
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_USER: medicine_user
+      MYSQL_PASSWORD: medicine_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: medicine_api_backend
+    restart: always
+    environment:
+      - APP_NAME=Medicine Expiry Alert System
+      - APP_ENV=production
+      - DATABASE_URL=mysql+pymysql://medicine_user:medicine_pass@db:3306/medicine_expiry_db
+      - SECRET_KEY=pharmacy-jwt-secret-replace-in-production
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  mysql_data:
