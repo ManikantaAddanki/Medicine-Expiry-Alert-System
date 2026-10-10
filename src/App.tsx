@@ -23,6 +23,8 @@ import { EmergencyMedicalCard } from './components/EmergencyMedicalCard';
 import { EmailAlertSettingsModal } from './components/EmailAlertSettingsModal';
 import { ExpiredMedicineAlertModal } from './components/ExpiredMedicineAlertModal';
 import { UploadMedicinePhotoModal } from './components/UploadMedicinePhotoModal';
+import { AuthModal } from './components/AuthModal';
+import { authService, AppUserProfile } from './services/authService';
 
 import { 
   Plus, 
@@ -52,14 +54,22 @@ export default function App() {
     return INITIAL_USER_MEDICINES;
   });
 
-  // Save to localStorage on change
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<AppUserProfile | null>(() => authService.getCurrentUser());
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+
+  // Save to localStorage on change and sync to Cloud
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(medicines));
     } catch (e) {
       console.warn('Could not write to localStorage');
     }
-  }, [medicines]);
+    if (currentUser && !currentUser.isDemo && currentUser.uid) {
+      authService.syncMedicinesToCloud(currentUser.uid, medicines);
+    }
+  }, [medicines, currentUser]);
 
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,6 +90,7 @@ export default function App() {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isExpiredAlertModalOpen, setIsExpiredAlertModalOpen] = useState(false);
   const [selectedExpiredMedicine, setSelectedExpiredMedicine] = useState<UserMedicine | null>(null);
+
 
   // Sound toggle & toast
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -137,6 +148,50 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, []);
+
+  // Auth listener and cloud medicine synchronization
+  useEffect(() => {
+    const unsub = authService.subscribeToAuth(async (user) => {
+      setCurrentUser(user);
+      if (user && user.email) {
+        emailAlertService.updateSettings({ recipientEmail: user.email });
+        if (!user.isDemo && user.uid) {
+          const cloudMeds = await authService.fetchMedicinesFromCloud(user.uid);
+          if (cloudMeds && cloudMeds.length > 0) {
+            setMedicines(cloudMeds);
+          } else {
+            await authService.syncMedicinesToCloud(user.uid, medicines);
+          }
+        }
+      }
+    });
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  const handleAuthSuccess = async (user: AppUserProfile, msg: string) => {
+    setCurrentUser(user);
+    if (user.email) {
+      emailAlertService.updateSettings({ recipientEmail: user.email });
+    }
+    if (!user.isDemo && user.uid) {
+      const cloudMeds = await authService.fetchMedicinesFromCloud(user.uid);
+      if (cloudMeds && cloudMeds.length > 0) {
+        setMedicines(cloudMeds);
+      } else {
+        await authService.syncMedicinesToCloud(user.uid, medicines);
+      }
+    }
+    showToast(msg);
+  };
+
+  const handleLogout = async () => {
+    await authService.logout();
+    setCurrentUser(null);
+    soundEffects.playSuccessChime();
+    showToast('Signed out of medicine cabinet.');
+  };
 
   // Filtered List
   const filteredMedicines = useMemo(() => {
@@ -330,7 +385,17 @@ export default function App() {
         expiringSoonCount={counts.soon}
         safeCount={counts.safe}
         soundEnabled={soundEnabled}
+        currentUser={currentUser}
         onToggleSound={toggleSound}
+        onOpenLogin={() => {
+          setAuthModalMode('login');
+          setIsAuthModalOpen(true);
+        }}
+        onOpenRegister={() => {
+          setAuthModalMode('register');
+          setIsAuthModalOpen(true);
+        }}
+        onLogout={handleLogout}
         onOpenAddModal={() => {
           setEditingMed(null);
           setIsAddModalOpen(true);
@@ -356,6 +421,35 @@ export default function App() {
           onOpenAlertMessage={() => handleOpenAlertMessage()}
           onTriggerAllEmails={handleSendAllExpiredEmails}
         />
+
+        {/* Guest / Account Callout */}
+        {!currentUser && (
+          <div className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-teal-900 via-slate-900 to-emerald-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md border border-teal-800/40">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center shrink-0 border border-teal-500/30">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">Save & Sync Your Family Medicine Cabinet</p>
+                <p className="text-[11px] text-teal-200/80">Log in or create an account to back up medicines to the cloud, enable multi-device sync, and get safety inbox alerts.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors cursor-pointer"
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => { setAuthModalMode('register'); setIsAuthModalOpen(true); }}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              >
+                Create Account
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* High-Tech Cabinet Health & Safety Score Card */}
         <CabinetHealthScoreCard
@@ -576,6 +670,13 @@ export default function App() {
       <SafeDisposalModal
         isOpen={isDisposalModalOpen}
         onClose={() => setIsDisposalModalOpen(false)}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
       />
 
       <UserAiAssistantDrawer

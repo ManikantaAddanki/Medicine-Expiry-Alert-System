@@ -3,6 +3,7 @@
   "appId": "1:292665611309:web:7650b6917739df0a6d14a4",
   "apiKey": "AIzaSyDXmg0nJxVlUs5pIINU2hRDTflLz9DyId8",
   "authDomain": "gen-lang-client-0571777810.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-medicineexpiryal-cc832e92-4fe7-45b6-bd3d-1e5dfdfca8d7",
   "storageBucket": "gen-lang-client-0571777810.firebasestorage.app",
   "messagingSenderId": "292665611309",
   "measurementId": "",

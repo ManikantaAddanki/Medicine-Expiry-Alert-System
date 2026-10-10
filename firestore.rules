@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // User profile collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().email is string && incoming().email.size() <= 200 &&
+        incoming().createdAt is string && incoming().createdAt.size() <= 60;
+      allow update: if isOwner(userId) && isValidId(userId) &&
+        incoming().userId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt', 'preferences', 'email']);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // User's private medicine cabinet collection
+      match /medicines/{medicineId} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) &&
+          incoming().userId == request.auth.uid &&
+          incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 200 &&
+          incoming().expiryDate is string && incoming().expiryDate.size() <= 20;
+        allow update: if isOwner(userId) && isValidId(userId) &&
+          incoming().userId == request.auth.uid;
+        allow delete: if isOwner(userId) && isValidId(userId);
+      }
+    }
+  }
+}

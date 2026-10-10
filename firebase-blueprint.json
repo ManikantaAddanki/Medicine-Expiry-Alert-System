@@ -1,0 +1,125 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile details for authentication and account settings",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique user identity UID from Firebase Auth"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name or family cabinet name",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of account registration"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of profile update"
+        }
+      },
+      "required": ["userId", "email", "createdAt"]
+    },
+    "UserMedicine": {
+      "title": "UserMedicine",
+      "description": "Individual medicine item in user's digital medicine cabinet",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique medicine document ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Medicine product name",
+          "maxLength": 120
+        },
+        "brandOrGeneric": {
+          "type": "string",
+          "description": "Brand or active generic substance name",
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "description": "Therapeutic category"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Medical condition treated",
+          "maxLength": 200
+        },
+        "expiryDate": {
+          "type": "string",
+          "description": "Expiration date in YYYY-MM-DD format"
+        },
+        "quantity": {
+          "type": "string",
+          "description": "Quantity remaining or package count",
+          "maxLength": 80
+        },
+        "location": {
+          "type": "string",
+          "description": "Cabinet or room storage location",
+          "maxLength": 80
+        },
+        "assignedTo": {
+          "type": "string",
+          "description": "Family member assigned",
+          "maxLength": 80
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Medicine package photo data or URL"
+        },
+        "batchNumber": {
+          "type": "string",
+          "description": "Lot or batch identifier",
+          "maxLength": 60
+        },
+        "manufacturingDate": {
+          "type": "string",
+          "description": "Manufacturing date in YYYY-MM-DD format"
+        },
+        "dosageNotes": {
+          "type": "string",
+          "description": "Dosage instructions and schedule notes",
+          "maxLength": 500
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional user safety notes",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO creation timestamp"
+        }
+      },
+      "required": ["id", "userId", "name", "expiryDate", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Profile data for each authenticated user"
+    },
+    "/users/{userId}/medicines/{medicineId}": {
+      "schema": "UserMedicine",
+      "description": "Medicine cabinet items owned by this authenticated user"
+    }
+  }
+}
