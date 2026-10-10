@@ -17,14 +17,17 @@ import {
   LogOut,
   ChevronDown,
   Cloud,
-  CheckCircle2
+  CheckCircle2,
+  Zap,
+  Shield,
+  Key
 } from 'lucide-react';
 import { voiceAlertService } from '../services/voiceAlertService';
 import { soundEffects } from '../services/soundEffects';
 import { emailAlertService } from '../services/emailAlertService';
 import { googleSignIn, logout, initAuth } from '../services/gmailApiService';
-import { User } from 'firebase/auth';
-import { AppUserProfile } from '../services/authService';
+import { AppUserProfile, authService } from '../services/authService';
+import { UserRole, ROLE_CONFIGS } from '../types/userMedicine';
 
 interface UserHeaderProps {
   totalCount: number;
@@ -46,6 +49,9 @@ interface UserHeaderProps {
   onOpenEmailModal: () => void;
   onOpenAiAssistant: () => void;
   onOpenDisposalGuide: () => void;
+  onOpenAdminModule: () => void;
+  onTriggerAutoScan?: () => void;
+  onRoleSwitch?: (role: UserRole) => void;
 }
 
 export const UserHeader: React.FC<UserHeaderProps> = ({
@@ -67,12 +73,18 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
   onOpenEmergencyMode,
   onOpenEmailModal,
   onOpenAiAssistant,
-  onOpenDisposalGuide
+  onOpenDisposalGuide,
+  onOpenAdminModule,
+  onTriggerAutoScan,
+  onRoleSwitch
 }) => {
   const [currentEmail, setCurrentEmail] = useState(() => emailAlertService.getSettings().recipientEmail);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const activeRole: UserRole = currentUser?.role || 'caregiver';
+  const roleCfg = ROLE_CONFIGS[activeRole] || ROLE_CONFIGS.caregiver;
 
   useEffect(() => {
     const unsubEmail = emailAlertService.subscribe(() => {
@@ -114,6 +126,15 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
     voiceAlertService.speakExpiredAlert('Paracetamol 650');
   };
 
+  const handleQuickRoleSwitch = (newRole: UserRole) => {
+    authService.updateCurrentUserRole(newRole);
+    soundEffects.playSuccessChime();
+    setIsUserMenuOpen(false);
+    if (onRoleSwitch) {
+      onRoleSwitch(newRole);
+    }
+  };
+
   // User initials for avatar
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
@@ -135,18 +156,29 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-extrabold text-slate-900 tracking-tight">Medicine Expiry Alert</h1>
-                <span className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full">
-                  Safety System Active 🔊 📧
+                <span className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Auto-Email Active 📧 🔊</span>
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Personal & family safety engine: spoken voice warnings & automated email alerts to your inbox
+                Personal & family safety engine: automatic inbox alert emails for expiring & expired medicines
               </p>
             </div>
           </div>
 
           {/* Right Side: Authentication Status & Actions */}
           <div className="flex items-center gap-2 self-end sm:self-center">
+            {/* Quick Admin Portal Button (Always prominent for admins and testing) */}
+            <button
+              onClick={onOpenAdminModule}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white shadow-xs transition-all hover:scale-102 cursor-pointer"
+              title="Open Admin Governance & Multi-Role Management Portal"
+            >
+              <span>👑</span>
+              <span>Admin Portal</span>
+            </button>
+
             {currentUser ? (
               /* Signed-in User Dropdown */
               <div className="relative" ref={menuRef}>
@@ -163,11 +195,16 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
                     )}
                   </div>
                   <div className="text-left hidden md:block">
-                    <p className="text-xs font-bold text-slate-900 leading-tight max-w-[130px] truncate">
-                      {currentUser.displayName || 'Member'}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-bold text-slate-900 leading-tight max-w-[120px] truncate">
+                        {currentUser.displayName || 'Member'}
+                      </p>
+                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-md border ${roleCfg.badgeClass}`}>
+                        {roleCfg.emoji} {roleCfg.shortLabel}
+                      </span>
+                    </div>
                     <p className="text-[10px] text-teal-700 font-medium leading-tight max-w-[130px] truncate">
-                      {currentUser.isDemo ? 'Demo Account' : currentUser.email || 'Cloud Synced'}
+                      {currentUser.isDemo ? 'Demo Mode' : currentUser.email || 'Cloud Synced'}
                     </p>
                   </div>
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
@@ -175,16 +212,36 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
 
                 {/* Dropdown Menu */}
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                     <div className="p-2.5 border-b border-slate-100 mb-1">
-                      <p className="text-xs font-bold text-slate-900">{currentUser.displayName || 'Member'}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{currentUser.email || 'Cabinet Account'}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-900 truncate max-w-[170px]">
+                          {currentUser.displayName || 'Member'}
+                        </p>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleCfg.badgeClass}`}>
+                          {roleCfg.emoji} {roleCfg.label}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{currentUser.email || 'Cabinet Account'}</p>
                       <div className="flex items-center gap-1.5 mt-2 text-[10px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg font-medium border border-emerald-200">
                         <Cloud className="w-3 h-3 text-emerald-600" />
-                        <span>Cloud Medicine Sync Active</span>
+                        <span>Cloud Multi-Role Sync Active</span>
                       </div>
                     </div>
 
+                    {/* Admin Portal Action */}
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onOpenAdminModule();
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 text-xs font-bold text-purple-900 hover:bg-purple-50 rounded-xl transition-colors cursor-pointer text-left"
+                    >
+                      <span>👑</span>
+                      <span>Admin Management Portal</span>
+                    </button>
+
+                    {/* Configure Email Action */}
                     <button
                       onClick={() => {
                         setIsUserMenuOpen(false);
@@ -195,6 +252,30 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
                       <Mail className="w-3.5 h-3.5 text-slate-500" />
                       <span>Configure Alert Email</span>
                     </button>
+
+                    {/* Quick Role Switcher Submenu */}
+                    <div className="p-2 my-1 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1">
+                        <Key className="w-3 h-3 text-purple-600" />
+                        <span>Switch Role Demo:</span>
+                      </p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {(['admin', 'caregiver', 'pharmacist', 'patient'] as UserRole[]).map(r => (
+                          <button
+                            key={r}
+                            onClick={() => handleQuickRoleSwitch(r)}
+                            className={`px-1.5 py-1 rounded text-[10px] font-semibold text-left transition-colors cursor-pointer flex items-center gap-1 ${
+                              activeRole === r 
+                                ? 'bg-purple-600 text-white font-bold' 
+                                : 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
+                            }`}
+                          >
+                            <span>{ROLE_CONFIGS[r].emoji}</span>
+                            <span className="truncate">{ROLE_CONFIGS[r].shortLabel}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
                     <button
                       onClick={() => {
@@ -223,10 +304,10 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
                 <button
                   onClick={onOpenRegister}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-2xs transition-all hover:scale-101 cursor-pointer"
-                  title="Create an account to securely save and sync your medicines"
+                  title="Create an account to specify role, save medicines, and receive automated expiry emails"
                 >
                   <UserPlus className="w-3.5 h-3.5 text-teal-200" />
-                  <span>Register</span>
+                  <span>Register (Choose Role)</span>
                 </button>
               </div>
             )}
@@ -236,6 +317,19 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
         {/* Bottom Row: Quick Action Toolbar */}
         <div className="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-slate-100">
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Automatic Email Dispatcher Trigger */}
+            <button
+              onClick={onTriggerAutoScan}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
+              title="Automated email delivery active! Click to run instant scan & dispatch alert emails to your inbox"
+            >
+              <Zap className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+              <span>Auto-Email:</span>
+              <span className="text-[10px] bg-emerald-600 text-white font-black px-1.5 py-0.2 rounded-md">
+                ACTIVE
+              </span>
+            </button>
+
             {/* Google Sign in / Gmail Connected Status */}
             <button
               onClick={handleGoogleConnect}
@@ -252,7 +346,7 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
               <span>Gmail Link</span>
             </button>
 
-            {/* Email Alerts Button */}
+            {/* Email Destination Button */}
             <button
               onClick={onOpenEmailModal}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 transition-colors shadow-2xs"

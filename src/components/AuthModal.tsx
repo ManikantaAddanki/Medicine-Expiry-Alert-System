@@ -15,6 +15,7 @@ import {
   HeartPulse
 } from 'lucide-react';
 import { authService, AppUserProfile } from '../services/authService';
+import { UserRole, ROLE_CONFIGS } from '../types/userMedicine';
 import { soundEffects } from '../services/soundEffects';
 
 interface AuthModalProps {
@@ -37,6 +38,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('caregiver');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [agreeTerms, setAgreeTerms] = useState(true);
@@ -114,9 +116,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setIsLoading(true);
     try {
-      const user = await authService.registerWithEmail(fullName, email, password);
+      const user = await authService.registerWithEmail(fullName, email, password, selectedRole);
       soundEffects.playSuccessChime();
-      onSuccess(user, `Account created successfully! Welcome to your digital medicine cabinet.`);
+      onSuccess(user, `Account registered as ${ROLE_CONFIGS[selectedRole].label}! Role assigned.`);
       onClose();
     } catch (err: any) {
       soundEffects.playWarningTone();
@@ -130,7 +132,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError(null);
     setIsLoading(true);
     try {
-      const res = await authService.loginWithGoogle();
+      const res = await authService.loginWithGoogle(selectedRole);
       soundEffects.playSuccessChime();
       onSuccess(res.profile, `Signed in with Google as ${res.profile.displayName || res.profile.email}!`);
       onClose();
@@ -142,12 +144,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleDemoSignIn = () => {
+  const handleDemoSignInWithRole = (role: UserRole) => {
     setIsLoading(true);
     try {
-      const demo = authService.loginAsDemoUser();
+      const names: Record<UserRole, string> = {
+        admin: 'Addanki Manikanta (Admin)',
+        caregiver: 'Sarah Jenkins (Caregiver)',
+        pharmacist: 'Dr. Robert Vance, PharmD',
+        patient: 'Alex Johnson (Patient)'
+      };
+      const emails: Record<UserRole, string> = {
+        admin: 'admin@medicinecabinet.local',
+        caregiver: 'sarah.caregiver@familyhealth.org',
+        pharmacist: 'dr.robert.vance@pharmacy.org',
+        patient: 'alex.patient@homecare.net'
+      };
+      const demo = authService.loginAsDemoUser(names[role], emails[role], role);
       soundEffects.playSuccessChime();
-      onSuccess(demo, `Loaded demo profile for ${demo.displayName}!`);
+      onSuccess(demo, `Loaded demo profile as ${ROLE_CONFIGS[role].label}!`);
       onClose();
     } finally {
       setIsLoading(false);
@@ -264,15 +278,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>Continue with Google</span>
               </button>
 
-              <button
-                type="button"
-                onClick={handleDemoSignIn}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-semibold border border-teal-200 transition-colors cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-                <span>Quick Test: Try as Demo Caregiver</span>
-              </button>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-0.5">
+                  <span className="flex items-center gap-1 text-teal-800">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Quick Test Accounts by Role:</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400">1-click demo</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSignInWithRole('admin')}
+                    disabled={isLoading}
+                    className="py-1.5 px-2 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 text-[11px] font-bold border border-purple-200 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <span>👑 Admin</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSignInWithRole('caregiver')}
+                    disabled={isLoading}
+                    className="py-1.5 px-2 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-900 text-[11px] font-bold border border-teal-200 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <span>🛡️ Caregiver</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSignInWithRole('pharmacist')}
+                    disabled={isLoading}
+                    className="py-1.5 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-900 text-[11px] font-bold border border-blue-200 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <span>💊 Pharmacist</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSignInWithRole('patient')}
+                    disabled={isLoading}
+                    className="py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-[11px] font-bold border border-emerald-200 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <span>👤 Patient</span>
+                  </button>
+                </div>
+              </div>
 
               <div className="relative flex items-center justify-center my-3">
                 <div className="border-t border-slate-200 w-full" />
@@ -412,6 +460,53 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     placeholder="you@example.com"
                     className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
                   />
+                </div>
+              </div>
+
+              {/* Role Selection */}
+              <div className="pt-0.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Select Your Cabinet Role & Permissions
+                  </label>
+                  <span className="text-[10px] text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full font-bold">
+                    Role Required
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {(['admin', 'caregiver', 'pharmacist', 'patient'] as UserRole[]).map((r) => {
+                    const cfg = ROLE_CONFIGS[r];
+                    const isSelected = selectedRole === r;
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setSelectedRole(r)}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? 'bg-teal-50/80 border-teal-500 ring-2 ring-teal-500/20 shadow-xs'
+                            : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="text-sm font-bold flex items-center gap-1.5">
+                            <span>{cfg.emoji}</span>
+                            <span className={`text-xs ${isSelected ? 'text-teal-950 font-extrabold' : 'text-slate-800'}`}>
+                              {cfg.shortLabel}
+                            </span>
+                          </span>
+                          <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-300'
+                          }`}>
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-tight">
+                          {cfg.description.slice(0, 68)}...
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

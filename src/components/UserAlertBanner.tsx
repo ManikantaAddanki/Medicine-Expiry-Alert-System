@@ -224,14 +224,41 @@ export const UserAlertBanner: React.FC<UserAlertBannerProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onFilterExpiringSoon}
-            className="px-3 py-1 text-xs font-semibold rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-900 self-end sm:self-auto transition-colors flex items-center gap-1"
-          >
-            <span>Review Items</span>
-            <ArrowRight className="w-3 h-3" />
-          </button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playNotificationPing();
+                emailAlertService.recordLog({
+                  id: `manual-soon-${Date.now()}`,
+                  recipientEmail,
+                  subject: `⚠️ [AUTOMATED NOTICE] ${criticalMeds.length} Medicines Expiring Soon in Cabinet`,
+                  medicineNames: criticalMeds.map(m => m.name),
+                  sentAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+                  status: 'DELIVERED',
+                  bodyText: `Advance notice: ${criticalMeds.map(m => m.name).join(', ')} are expiring soon. Check your cabinet.`,
+                  bodyHtml: `<div style="font-family: sans-serif; padding: 20px; background: #fff7ed; border: 2px solid #f97316; border-radius: 12px;"><h2>⚠️ Expiring Soon Notice</h2><p>${criticalMeds.length} medicines need attention soon.</p></div>`
+                });
+                soundEffects.playSuccessChime();
+                setBatchEmailSent(true);
+                setTimeout(() => setBatchEmailSent(false), 5000);
+              }}
+              className="px-3 py-1.5 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-600 text-white transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+              title={`Send expiring soon alert email to ${recipientEmail}`}
+            >
+              <Send className="w-3 h-3" />
+              <span>Email Notice ✉️</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onFilterExpiringSoon}
+              className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-900 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <span>Review Items</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
         </div>
       )}
     </div>

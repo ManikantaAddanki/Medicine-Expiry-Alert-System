@@ -110,6 +110,26 @@ class SoundManager {
       // Ignore audio error
     }
   }
+
+  // Email alert dispatched crisp notification ping
+  playNotificationPing() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.1);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.26);
+    } catch (e) {}
+  }
 }
 
 export const soundEffects = new SoundManager();

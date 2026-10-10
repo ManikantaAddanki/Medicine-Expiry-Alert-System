@@ -81,3 +81,75 @@ export interface DrugInteraction {
   summary: string;
   clinicalAdvice: string;
 }
+
+export type UserRole = 'admin' | 'caregiver' | 'pharmacist' | 'patient';
+
+export interface RoleConfig {
+  id: UserRole;
+  label: string;
+  shortLabel: string;
+  emoji: string;
+  badgeClass: string;
+  description: string;
+  privileges: string[];
+}
+
+export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
+  admin: {
+    id: 'admin',
+    label: 'Cabinet Administrator',
+    shortLabel: 'Admin',
+    emoji: '👑',
+    badgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
+    description: 'Full system oversight: manage all registered users, assign roles, configure automated email rules, and view compliance audits.',
+    privileges: [
+      'Access to Admin Module & User Management',
+      'Change & assign security roles',
+      'Trigger automated expiry emails to all users',
+      'Full cabinet inventory & batch disposal authority'
+    ]
+  },
+  caregiver: {
+    id: 'caregiver',
+    label: 'Family Caregiver',
+    shortLabel: 'Caregiver',
+    emoji: '🛡️',
+    badgeClass: 'bg-teal-100 text-teal-800 border-teal-300',
+    description: 'Family health manager: adds and organizes medicines for dependents, logs doses taken, and receives automated email alerts.',
+    privileges: [
+      'Add, edit & photo scan medications',
+      'Track daily family dose schedule',
+      'Receive instant automated inbox alerts for expiring meds',
+      'Initiate safe household disposal guides'
+    ]
+  },
+  pharmacist: {
+    id: 'pharmacist',
+    label: 'Clinical Pharmacist / Medical Advisor',
+    shortLabel: 'Pharmacist',
+    emoji: '💊',
+    badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
+    description: 'Medical & chemical review: checks active ingredients, dangerous drug interactions, contraindications, and expiry quarantine.',
+    privileges: [
+      'Clinical drug clash & interaction analysis',
+      'Certify medicine quality and packaging integrity',
+      'Approve chemical disposal protocol for expired items',
+      'Inspect lot/batch numbers and recalls'
+    ]
+  },
+  patient: {
+    id: 'patient',
+    label: 'Individual Patient / Family Member',
+    shortLabel: 'Patient',
+    emoji: '👤',
+    badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    description: 'Medication recipient: views personal prescriptions, checks daily dose schedule, and receives personal expiry reminders.',
+    privileges: [
+      'View personal assigned medications',
+      'Check off daily morning / night doses',
+      'Receive personal alerts when medicine expires or is low',
+      'Access emergency room medication locator'
+    ]
+  }
+};
+

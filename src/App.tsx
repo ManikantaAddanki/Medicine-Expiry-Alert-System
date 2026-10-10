@@ -24,7 +24,10 @@ import { EmailAlertSettingsModal } from './components/EmailAlertSettingsModal';
 import { ExpiredMedicineAlertModal } from './components/ExpiredMedicineAlertModal';
 import { UploadMedicinePhotoModal } from './components/UploadMedicinePhotoModal';
 import { AuthModal } from './components/AuthModal';
+import { AdminModuleModal } from './components/AdminModuleModal';
 import { authService, AppUserProfile } from './services/authService';
+import { autoEmailDispatcher } from './services/autoEmailDispatcher';
+import { UserRole } from './types/userMedicine';
 
 import { 
   Plus, 
@@ -90,6 +93,7 @@ export default function App() {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isExpiredAlertModalOpen, setIsExpiredAlertModalOpen] = useState(false);
   const [selectedExpiredMedicine, setSelectedExpiredMedicine] = useState<UserMedicine | null>(null);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
 
   // Sound toggle & toast
@@ -169,6 +173,43 @@ export default function App() {
       unsub();
     };
   }, []);
+
+  // Automated Background Expiry Email Dispatcher
+  useEffect(() => {
+    // Initial automated check after 2 seconds debounce
+    const timeout = setTimeout(() => {
+      autoEmailDispatcher.runAutoCheck(medicines, currentUser?.email || undefined).then(res => {
+        if (res.triggered) {
+          showToast(`⚡ Automated safety email dispatched to ${res.recipient} (${res.expiredCount} expired, ${res.expiringSoonCount} expiring soon)!`);
+        }
+      });
+    }, 2000);
+
+    // Periodic scheduled check every 60 seconds
+    const interval = setInterval(() => {
+      autoEmailDispatcher.runAutoCheck(medicines, currentUser?.email || undefined).then(res => {
+        if (res.triggered) {
+          showToast(`⚡ Scheduled automated email alert dispatched to ${res.recipient}!`);
+        }
+      });
+    }, 60000);
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [medicines, currentUser]);
+
+  const handleManualAutoScan = async () => {
+    soundEffects.playNotificationPing();
+    const res = await autoEmailDispatcher.runAutoCheck(medicines, currentUser?.email || undefined, true);
+    if (res.triggered) {
+      soundEffects.playSuccessChime();
+      showToast(`⚡ Automated email dispatched to ${res.recipient} (${res.expiredCount} expired, ${res.expiringSoonCount} expiring soon)!`);
+    } else {
+      showToast(`⚡ Safety scan complete: ${res.summary}`);
+    }
+  };
 
   const handleAuthSuccess = async (user: AppUserProfile, msg: string) => {
     setCurrentUser(user);
@@ -408,6 +449,14 @@ export default function App() {
         onOpenEmailModal={() => setIsEmailModalOpen(true)}
         onOpenAiAssistant={() => setIsAiDrawerOpen(true)}
         onOpenDisposalGuide={() => setIsDisposalModalOpen(true)}
+        onOpenAdminModule={() => setIsAdminModalOpen(true)}
+        onTriggerAutoScan={handleManualAutoScan}
+        onRoleSwitch={(role: UserRole) => {
+          if (currentUser) {
+            setCurrentUser({ ...currentUser, role });
+            showToast(`Active role set to ${role}`);
+          }
+        }}
       />
 
       {/* Main Container */}
@@ -677,6 +726,17 @@ export default function App() {
         initialMode={authModalMode}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
+      />
+
+      <AdminModuleModal
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+        currentUser={currentUser}
+        medicines={medicines}
+        onRoleChanged={(user) => {
+          setCurrentUser(user);
+          showToast(`User role updated to ${user.role}!`);
+        }}
       />
 
       <UserAiAssistantDrawer

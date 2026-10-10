@@ -102,6 +102,14 @@ class EmailAlertService {
     return [...this.sentLogs];
   }
 
+  recordLog(log: EmailNotificationLog) {
+    this.sentLogs = [log, ...this.sentLogs];
+    try {
+      localStorage.setItem('medicine_email_logs', JSON.stringify(this.sentLogs));
+    } catch (e) {}
+    this.notify();
+  }
+
   // Trigger browser push notification if permitted
   requestBrowserPermission() {
     if (typeof window !== 'undefined' && 'Notification' in window) {

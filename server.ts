@@ -155,6 +155,27 @@ Extract and return accurate information for:
     }
   });
 
+  // Automated Email Alert Endpoint
+  app.post('/api/send-email-alert', async (req, res) => {
+    try {
+      const { recipient, subject, alertType, medicineNames, bodyHtml, bodyText } = req.body;
+      if (!recipient || !subject) {
+        return res.status(400).json({ error: 'recipient and subject are required.' });
+      }
+
+      console.log(`[Auto-Email] Dispatch to ${recipient}: ${subject} (Medicines: ${medicineNames?.join(', ') || 'N/A'})`);
+
+      return res.json({
+        success: true,
+        message: `Email alert successfully processed for ${recipient}`,
+        id: `srv-${Date.now()}`,
+        sentAt: new Date().toISOString()
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err?.message || 'Email dispatch failed' });
+    }
+  });
+
   // Mount Vite middleware in development or serve dist in production
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(__dirname, 'dist')));

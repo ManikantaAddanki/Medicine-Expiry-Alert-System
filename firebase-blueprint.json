@@ -2,7 +2,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "User profile details for authentication and account settings",
+      "description": "User profile details with role-based access for medicine management",
       "type": "object",
       "properties": {
         "userId": {
@@ -18,6 +18,11 @@
           "type": "string",
           "description": "User display name or family cabinet name",
           "maxLength": 100
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "caregiver", "pharmacist", "patient"],
+          "description": "User operational and security role"
         },
         "createdAt": {
           "type": "string",
@@ -115,7 +120,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "UserProfile",
-      "description": "Profile data for each authenticated user"
+      "description": "Profile data for each authenticated user including role"
     },
     "/users/{userId}/medicines/{medicineId}": {
       "schema": "UserMedicine",
